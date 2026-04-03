@@ -1,39 +1,93 @@
-from django.shortcuts import render
-from django.http import HttpResponse, JsonResponse
-from .models import Profile, Grade
-
-# Create your views here.
-
-def register_student(request):
-    student = request.GET.get('student')
-
-    check = Profile.objects.filter(reg_no = student.upper())
-
-    if student and not check:
-        Profile.objects.create(reg_no= student.upper())
-        return HttpResponse("Profile Created")
-
-    if check:
-        return HttpResponse("Profile Already Created")
-
-    else:
-        return HttpResponse("Error During Creation")
+from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.contrib.auth.models import User
+from .models import Teacher, Student, Grade, Course, Enrollment
+from .serializers import (
+    UserSerializer,
+    TeacherSerializer,
+    StudentSerializer,
+    GradeSerializer,
+    CourseSerializer,
+    EnrollmentSerializer,
+)
 
 
-def grade(request):
-    student = request.GET.get('student')
-    math= request.GET.get('math').upper()
-    english= request.GET.get('english').upper()
-    physics= request.GET.get('physics').upper()
-    chemistry= request.GET.get('chemistry').upper()
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.AllowAny]
 
-    check = Profile.objects.filter(reg_no = student.upper())
-    print(student.upper())
 
-    if check:
-        Grade.objects.create(student_id= student, math= math, english= english,  chemistry= chemistry, physics= physics)
-        return HttpResponse("Student Result Uploaded Succesfully")
-        
-    
-    else:
-        return HttpResponse("Student is not registed yet")
+class TeacherViewSet(viewsets.ModelViewSet):
+    queryset = Teacher.objects.all()
+    serializer_class = TeacherSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        user_data = request.data.pop("user", None)
+        if user_data:
+            user = User.objects.create_user(
+                username=user_data.get("username"),
+                email=user_data.get("email", ""),
+                password=user_data.get("password", ""),
+                first_name=user_data.get("first_name", ""),
+                last_name=user_data.get("last_name", ""),
+            )
+            teacher = Teacher.objects.create(user=user, **request.data)
+        else:
+            teacher = Teacher.objects.create(**request.data)
+        serializer = self.get_serializer(teacher)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class StudentViewSet(viewsets.ModelViewSet):
+    queryset = Student.objects.all()
+    serializer_class = StudentSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        user_data = request.data.pop("user", None)
+        if user_data:
+            user = User.objects.create_user(
+                username=user_data.get("username"),
+                email=user_data.get("email", ""),
+                password=user_data.get("password", ""),
+                first_name=user_data.get("first_name", ""),
+                last_name=user_data.get("last_name", ""),
+            )
+            student = Student.objects.create(user=user, **request.data)
+        else:
+            student = Student.objects.create(**request.data)
+        serializer = self.get_serializer(student)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class GradeViewSet(viewsets.ModelViewSet):
+    queryset = Grade.objects.all()
+    serializer_class = GradeSerializer
+    permission_classes = [permissions.AllowAny]
+
+    @action(detail=False, methods=["get"], url_path="student/(?P<student_id>[^/]+)")
+    def by_student(self, request, student_id=None):
+        grades = Grade.objects.filter(student_id=student_id)
+        serializer = self.get_serializer(grades, many=True)
+        return Response(serializer.data)
+
+
+class CourseViewSet(viewsets.ModelViewSet):
+    queryset = Course.objects.all()
+    serializer_class = CourseSerializer
+    permission_classes = [permissions.AllowAny]
+
+
+class EnrollmentViewSet(viewsets.ModelViewSet):
+    queryset = Enrollment.objects.all()
+    serializer_class = EnrollmentSerializer
+    permission_classes = [permissions.AllowAny]
+
+    @action(detail=False, methods=["get"], url_path="student/(?P<student_id>[^/]+)")
+    def by_student(self, request, student_id=None):
+        enrollments = Enrollment.objects.filter(student_id=student_id)
+        serializer = self.get_serializer(enrollments, many=True)
+        return Response(serializer.data)

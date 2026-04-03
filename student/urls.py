@@ -1,8 +1,22 @@
-from django.urls import path
-from .views import register_student, grade
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import (
+    UserViewSet,
+    TeacherViewSet,
+    StudentViewSet,
+    GradeViewSet,
+    CourseViewSet,
+    EnrollmentViewSet,
+)
 
-urlpatterns =[
- path('register/', register_student, name='register_student'),
- path('grade/', grade, name='grade'),
- 
+router = DefaultRouter()
+router.register(r"users", UserViewSet)
+router.register(r"teachers", TeacherViewSet)
+router.register(r"students", StudentViewSet)
+router.register(r"grades", GradeViewSet)
+router.register(r"courses", CourseViewSet)
+router.register(r"enrollments", EnrollmentViewSet)
+
+urlpatterns = [
+    path("", include(router.urls)),
 ]
